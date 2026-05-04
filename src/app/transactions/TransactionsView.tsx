@@ -14,7 +14,7 @@ import { NavBar } from "@/components/NavBar";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { PartnerChip } from "@/components/PartnerChip";
 import { CategoryIcon } from "@/components/CategoryIcon";
-import { formatDate } from "@/lib/utils";
+import { formatDate, txDisplay } from "@/lib/utils";
 import {
   deleteTransactions,
   deleteAllInMonth,
@@ -259,12 +259,10 @@ export function TransactionsView({
                   </div>
                   <p
                     className={`ml-2 shrink-0 text-sm font-semibold tabular-nums ${
-                      tx.type === "income"
-                        ? "text-emerald-600"
-                        : "text-rose-600"
+                      txDisplay(tx.type).textClass
                     }`}
                   >
-                    {tx.type === "income" ? "+" : "-"}
+                    {txDisplay(tx.type).sign}
                     {tx.amount.toLocaleString("ko-KR")}원
                   </p>
                 </>

@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { Users, User } from "lucide-react";
 import type { Category } from "@/lib/db/categories";
+import { AmountInput } from "@/components/AmountInput";
+
+type TxType = "income" | "expense" | "savings";
 
 type Props = {
   categories: Category[];
@@ -10,7 +13,7 @@ type Props = {
   partnerBName: string;
   defaultValues?: {
     name: string;
-    type: "income" | "expense";
+    type: TxType;
     category_id: string | null;
     amount: number;
     paid_by: "a" | "b";
@@ -23,6 +26,18 @@ type Props = {
   submitLabel: string;
 };
 
+const TYPE_BTN_ACTIVE: Record<TxType, string> = {
+  expense: "bg-rose-500 text-white shadow-sm",
+  income: "bg-emerald-500 text-white shadow-sm",
+  savings: "bg-blue-500 text-white shadow-sm",
+};
+
+const TYPE_LABEL: Record<TxType, string> = {
+  expense: "지출",
+  income: "수입",
+  savings: "저금",
+};
+
 export function RecurringForm({
   categories,
   partnerAName,
@@ -32,7 +47,7 @@ export function RecurringForm({
   action,
   submitLabel,
 }: Props) {
-  const [type, setType] = useState<"income" | "expense">(
+  const [type, setType] = useState<TxType>(
     defaultValues?.type ?? "expense",
   );
   const [paidBy, setPaidBy] = useState<"a" | "b">(
@@ -61,22 +76,18 @@ export function RecurringForm({
         />
       </div>
 
-      {/* 수입/지출 */}
+      {/* 수입/지출/저금 */}
       <div className="flex rounded-xl border border-neutral-200 bg-white p-1">
-        {(["expense", "income"] as const).map((t) => (
+        {(["expense", "income", "savings"] as const).map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setType(t)}
             className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition ${
-              type === t
-                ? t === "expense"
-                  ? "bg-rose-500 text-white shadow-sm"
-                  : "bg-emerald-500 text-white shadow-sm"
-                : "text-neutral-500"
+              type === t ? TYPE_BTN_ACTIVE[t] : "text-neutral-500"
             }`}
           >
-            {t === "expense" ? "지출" : "수입"}
+            {TYPE_LABEL[t]}
           </button>
         ))}
       </div>
@@ -84,7 +95,9 @@ export function RecurringForm({
 
       {/* 누가 결제 */}
       <div className="space-y-1.5">
-        <label className="block text-sm font-medium">결제하는 사람</label>
+        <label className="block text-sm font-medium">
+          {type === "income" ? "받는 사람" : "결제하는 사람"}
+        </label>
         <div className="grid grid-cols-2 gap-2">
           {(["a", "b"] as const).map((p) => {
             const name = p === "a" ? partnerAName : partnerBName;
@@ -181,18 +194,13 @@ export function RecurringForm({
       </div>
 
       {/* 금액 */}
-      <div className="space-y-1.5">
-        <label className="block text-sm font-medium">금액 (원)</label>
-        <input
-          name="amount"
-          type="number"
-          min={1}
-          defaultValue={defaultValues?.amount || ""}
-          placeholder="700000"
-          className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 outline-none transition focus:border-rose-400 focus:ring-2 focus:ring-rose-100"
-          required
-        />
-      </div>
+      <AmountInput
+        name="amount"
+        label="금액 (원)"
+        defaultValue={defaultValues?.amount ?? 0}
+        placeholder="700000"
+        required
+      />
 
       {/* 메모 */}
       <div className="space-y-1.5">

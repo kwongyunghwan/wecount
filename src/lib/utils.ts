@@ -1,3 +1,23 @@
+export type DisplayTxType = "income" | "expense" | "savings";
+
+export type TxDisplay = {
+  sign: "+" | "-";
+  textClass: string;
+  label: string;
+};
+
+/** 거래 타입별 표시(부호/색/라벨)를 한 곳에서 관리 */
+export function txDisplay(type: DisplayTxType): TxDisplay {
+  switch (type) {
+    case "income":
+      return { sign: "+", textClass: "text-emerald-600", label: "수입" };
+    case "expense":
+      return { sign: "-", textClass: "text-rose-600", label: "지출" };
+    case "savings":
+      return { sign: "-", textClass: "text-blue-600", label: "저금" };
+  }
+}
+
 export function formatDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   const days = ["일", "월", "화", "수", "목", "금", "토"];

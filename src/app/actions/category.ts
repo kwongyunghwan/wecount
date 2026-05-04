@@ -8,7 +8,10 @@ export async function createCategory(formData: FormData) {
   const couple = await requireCouple();
 
   const name = String(formData.get("name") ?? "").trim();
-  const type = String(formData.get("type") ?? "") as "income" | "expense";
+  const type = String(formData.get("type") ?? "") as
+    | "income"
+    | "expense"
+    | "savings";
   const color = String(formData.get("color") ?? "#737373");
 
   if (!name || !type) redirect("/settings?error=empty");

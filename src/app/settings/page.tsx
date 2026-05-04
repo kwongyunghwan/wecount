@@ -22,6 +22,7 @@ export default async function SettingsPage() {
 
   const expenseCategories = categories.filter((c) => c.type === "expense");
   const incomeCategories = categories.filter((c) => c.type === "income");
+  const savingsCategories = categories.filter((c) => c.type === "savings");
 
   return (
     <AppLayout couple={couple} title="설정">
@@ -77,6 +78,15 @@ export default async function SettingsPage() {
           </h2>
           <CategoryList categories={incomeCategories} />
           <AddCategoryForm type="income" action={createCategory} />
+        </section>
+
+        {/* 저금 카테고리 */}
+        <section>
+          <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-neutral-600">
+            <Tag size={14} /> 저금 카테고리
+          </h2>
+          <CategoryList categories={savingsCategories} />
+          <AddCategoryForm type="savings" action={createCategory} />
         </section>
 
         {/* 나가기 */}
@@ -162,7 +172,7 @@ function AddCategoryForm({
   type,
   action,
 }: {
-  type: "income" | "expense";
+  type: "income" | "expense" | "savings";
   action: (formData: FormData) => Promise<void>;
 }) {
   return (

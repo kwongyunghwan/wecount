@@ -6,7 +6,10 @@ import { requireCouple } from "@/lib/session";
 
 function parseFields(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
-  const type = String(formData.get("type") ?? "expense") as "income" | "expense";
+  const type = String(formData.get("type") ?? "expense") as
+    | "income"
+    | "expense"
+    | "savings";
   const rawCategoryId = formData.get("category_id");
   const category_id =
     rawCategoryId && String(rawCategoryId).trim() !== ""

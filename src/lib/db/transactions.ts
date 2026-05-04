@@ -3,11 +3,13 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 
 export type PaidBy = "a" | "b";
 
+export type TransactionType = "income" | "expense" | "savings";
+
 export type Transaction = {
   id: string;
   couple_id: string;
   category_id: string | null;
-  type: "income" | "expense";
+  type: TransactionType;
   amount: number;
   memo: string | null;
   occurred_at: string;
@@ -20,25 +22,21 @@ export type Transaction = {
 export type MonthlySummary = {
   income: number;
   expense: number;
+  savings: number;
+  /** 잔액 = income - expense - savings */
   net: number;
 };
 
-export type PersonSummary = {
-  a: { income: number; expense: number };
-  b: { income: number; expense: number };
-  shared: { income: number; expense: number };
+export type PersonAmounts = {
+  income: number;
+  expense: number;
+  savings: number;
 };
 
-export type Settlement = {
-  sharedExpenseTotal: number;
-  paidByA: number;
-  paidByB: number;
-  /** A 입장에서: 양수면 받아야 함, 음수면 줘야 함 */
-  aDifference: number;
-  /** 누가 송금해야 하는지. null이면 정산 필요 없음 */
-  payer: PaidBy | null;
-  /** 송금 금액 (절대값) */
-  amount: number;
+export type PersonSummary = {
+  a: PersonAmounts;
+  b: PersonAmounts;
+  shared: PersonAmounts;
 };
 
 export type CategoryBreakdownRow = {
@@ -64,7 +62,7 @@ export type TxFilter = {
   month?: number;
   /** 'a'|'b' = 그 사람 개인, 'shared' = 공동 */
   payer?: "a" | "b" | "shared";
-  type?: "income" | "expense";
+  type?: "income" | "expense" | "savings";
 };
 
 export async function getTransactionsByFilter(
@@ -166,11 +164,13 @@ export async function getMonthlySummary(
   if (error) throw error;
   let income = 0;
   let expense = 0;
+  let savings = 0;
   for (const tx of data ?? []) {
     if (tx.type === "income") income += tx.amount;
-    else expense += tx.amount;
+    else if (tx.type === "expense") expense += tx.amount;
+    else if (tx.type === "savings") savings += tx.amount;
   }
-  return { income, expense, net: income - expense };
+  return { income, expense, savings, net: income - expense - savings };
 }
 
 export async function getPersonSummary(
@@ -189,71 +189,30 @@ export async function getPersonSummary(
   if (error) throw error;
 
   const result: PersonSummary = {
-    a: { income: 0, expense: 0 },
-    b: { income: 0, expense: 0 },
-    shared: { income: 0, expense: 0 },
+    a: { income: 0, expense: 0, savings: 0 },
+    b: { income: 0, expense: 0, savings: 0 },
+    shared: { income: 0, expense: 0, savings: 0 },
   };
   for (const tx of (data ?? []) as Array<{
-    type: "income" | "expense";
+    type: TransactionType;
     amount: number;
     paid_by: PaidBy;
     is_shared: boolean;
   }>) {
+    // A방식: 결제자(paid_by)는 항상 자기 버킷에 누적, is_shared=true면 shared에도 추가 (의도적 겹침).
+    result[tx.paid_by][tx.type] += tx.amount;
     if (tx.is_shared) {
       result.shared[tx.type] += tx.amount;
-    } else {
-      result[tx.paid_by][tx.type] += tx.amount;
     }
   }
   return result;
-}
-
-export async function getSettlement(
-  coupleId: string,
-  year: number,
-  month: number,
-): Promise<Settlement> {
-  const [from, to] = monthRange(year, month);
-  const { data, error } = await supabaseAdmin
-    .from("transactions")
-    .select("amount, paid_by")
-    .eq("couple_id", coupleId)
-    .eq("type", "expense")
-    .eq("is_shared", true)
-    .gte("occurred_at", from)
-    .lte("occurred_at", to);
-
-  if (error) throw error;
-
-  let paidByA = 0;
-  let paidByB = 0;
-  for (const tx of (data ?? []) as Array<{ amount: number; paid_by: PaidBy }>) {
-    if (tx.paid_by === "a") paidByA += tx.amount;
-    else paidByB += tx.amount;
-  }
-
-  const sharedExpenseTotal = paidByA + paidByB;
-  const fairShare = sharedExpenseTotal / 2;
-  const aDifference = paidByA - fairShare;
-
-  let payer: PaidBy | null = null;
-  let amount = 0;
-  if (aDifference > 0) {
-    payer = "b";
-    amount = Math.round(aDifference);
-  } else if (aDifference < 0) {
-    payer = "a";
-    amount = Math.round(-aDifference);
-  }
-
-  return { sharedExpenseTotal, paidByA, paidByB, aDifference, payer, amount };
 }
 
 export async function getCategoryBreakdown(
   coupleId: string,
   year: number,
   month: number,
-  type: "income" | "expense",
+  type: "income" | "expense" | "savings",
 ): Promise<CategoryBreakdownRow[]> {
   const [from, to] = monthRange(year, month);
   const { data, error } = await supabaseAdmin
@@ -303,6 +262,7 @@ export type MonthBreakdown = {
   month: number;
   income: number;
   expense: number;
+  savings: number;
 };
 
 export async function getYearlyMonthBreakdown(
@@ -324,17 +284,19 @@ export async function getYearlyMonthBreakdown(
     month: i + 1,
     income: 0,
     expense: 0,
+    savings: 0,
   }));
 
   for (const tx of (data ?? []) as Array<{
-    type: "income" | "expense";
+    type: TransactionType;
     amount: number;
     occurred_at: string;
   }>) {
     const m = parseInt(tx.occurred_at.slice(5, 7), 10);
     if (m < 1 || m > 12) continue;
     if (tx.type === "income") result[m - 1].income += tx.amount;
-    else result[m - 1].expense += tx.amount;
+    else if (tx.type === "expense") result[m - 1].expense += tx.amount;
+    else if (tx.type === "savings") result[m - 1].savings += tx.amount;
   }
   return result;
 }
@@ -355,20 +317,20 @@ export async function getYearlyPersonSummary(
   if (error) throw error;
 
   const result: PersonSummary = {
-    a: { income: 0, expense: 0 },
-    b: { income: 0, expense: 0 },
-    shared: { income: 0, expense: 0 },
+    a: { income: 0, expense: 0, savings: 0 },
+    b: { income: 0, expense: 0, savings: 0 },
+    shared: { income: 0, expense: 0, savings: 0 },
   };
   for (const tx of (data ?? []) as Array<{
-    type: "income" | "expense";
+    type: TransactionType;
     amount: number;
     paid_by: PaidBy;
     is_shared: boolean;
   }>) {
+    // A방식: 결제자(paid_by)는 항상 자기 버킷에 누적, is_shared=true면 shared에도 추가 (의도적 겹침).
+    result[tx.paid_by][tx.type] += tx.amount;
     if (tx.is_shared) {
       result.shared[tx.type] += tx.amount;
-    } else {
-      result[tx.paid_by][tx.type] += tx.amount;
     }
   }
   return result;
@@ -377,7 +339,7 @@ export async function getYearlyPersonSummary(
 export async function getYearlyCategoryBreakdown(
   coupleId: string,
   year: number,
-  type: "income" | "expense",
+  type: "income" | "expense" | "savings",
 ): Promise<CategoryBreakdownRow[]> {
   const from = `${year}-01-01`;
   const to = `${year}-12-31`;
@@ -426,7 +388,7 @@ export async function getCategoryAmountsByMonth(
   coupleId: string,
   year: number,
   month: number,
-  type: "income" | "expense",
+  type: "income" | "expense" | "savings",
 ): Promise<Map<string | null, number>> {
   const [from, to] = monthRange(year, month);
   const { data, error } = await supabaseAdmin

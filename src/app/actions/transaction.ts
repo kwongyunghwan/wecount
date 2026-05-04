@@ -5,7 +5,10 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { requireCouple } from "@/lib/session";
 
 function parseFields(formData: FormData) {
-  const type = String(formData.get("type") ?? "") as "income" | "expense";
+  const type = String(formData.get("type") ?? "") as
+    | "income"
+    | "expense"
+    | "savings";
   const rawCategoryId = formData.get("category_id");
   const category_id =
     rawCategoryId && String(rawCategoryId).trim() !== ""

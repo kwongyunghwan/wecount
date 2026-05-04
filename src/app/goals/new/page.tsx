@@ -1,5 +1,6 @@
 import { requireCouple } from "@/lib/session";
 import { AppLayout } from "@/components/AppLayout";
+import { AmountInput } from "@/components/AmountInput";
 import { createGoal } from "@/app/actions/savings";
 
 const COLOR_PRESETS = [
@@ -30,17 +31,12 @@ export default async function NewGoalPage() {
           />
         </div>
 
-        <div className="space-y-1.5">
-          <label className="block text-sm font-medium">목표 금액 (원)</label>
-          <input
-            name="target_amount"
-            type="number"
-            min={1}
-            placeholder="2000000"
-            className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 outline-none transition focus:border-rose-400 focus:ring-2 focus:ring-rose-100"
-            required
-          />
-        </div>
+        <AmountInput
+          name="target_amount"
+          label="목표 금액 (원)"
+          placeholder="2000000"
+          required
+        />
 
         <div className="space-y-1.5">
           <label className="block text-sm font-medium">

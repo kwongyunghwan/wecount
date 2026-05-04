@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   ChevronLeft,
   ChevronRight,
-  AlertCircle,
   TrendingUp,
   TrendingDown,
   ArrowRight,
@@ -16,12 +15,10 @@ import {
   type PersonSummary,
   type CategoryBreakdownRow,
 } from "@/lib/db/transactions";
-import { getBudgetMap } from "@/lib/db/budgets";
 import { getCategories, type Category } from "@/lib/db/categories";
 import { AppLayout } from "@/components/AppLayout";
 import { StatsTabs } from "@/components/StatsTabs";
 import { CategoryIcon } from "@/components/CategoryIcon";
-import { setBudget } from "@/app/actions/budget";
 
 export default async function StatsPage({
   searchParams,
@@ -47,7 +44,6 @@ export default async function StatsPage({
     personSummary,
     expBreakdown,
     prevExpenseByCategory,
-    budgetMap,
     allExpenseCategories,
   ] = await Promise.all([
     getMonthlySummary(couple.id, year, month),
@@ -59,11 +55,9 @@ export default async function StatsPage({
       prevMonth.month,
       "expense",
     ),
-    getBudgetMap(couple.id, year, month),
     getCategories(couple.id, "expense"),
   ]);
 
-  // 예산이 설정됐지만 이번 달 지출 없는 카테고리도 표시하기 위한 처리
   const breakdownByCategoryId = new Map<string, CategoryBreakdownRow>();
   for (const row of expBreakdown) {
     if (row.categoryId) breakdownByCategoryId.set(row.categoryId, row);
@@ -146,9 +140,9 @@ export default async function StatsPage({
           month={month}
         />
 
-        {/* 카테고리별 지출 + 예산 */}
+        {/* 카테고리별 지출 */}
         <section>
-          <h2 className="mb-3 text-sm font-semibold">카테고리별 지출 / 예산</h2>
+          <h2 className="mb-3 text-sm font-semibold">카테고리별 지출</h2>
           {allExpenseCategories.length === 0 ? (
             <p className="text-sm text-neutral-400">카테고리가 없어요.</p>
           ) : (
@@ -156,18 +150,14 @@ export default async function StatsPage({
               {allExpenseCategories.map((cat) => {
                 const row = breakdownByCategoryId.get(cat.id);
                 const spent = row?.amount ?? 0;
-                const budget = budgetMap.get(cat.id) ?? null;
                 const prevSpent = prevExpenseByCategory.get(cat.id) ?? 0;
-                if (spent === 0 && !budget) return null;
+                if (spent === 0) return null;
                 return (
                   <CategoryRow
                     key={cat.id}
                     category={cat}
                     spent={spent}
-                    budget={budget}
                     prevSpent={prevSpent}
-                    year={year}
-                    month={month}
                   />
                 );
               })}
@@ -252,6 +242,10 @@ function PersonCompare({
           />
         ) : null}
       </div>
+      <p className="mt-1.5 text-[10px] text-neutral-400">
+        사람별 = 결제자 기준 합계. 공동은 함께 부담하기로 한 거래 합계 (사람별과
+        일부 겹침).
+      </p>
     </section>
   );
 }
@@ -300,22 +294,12 @@ function PersonBar({
 function CategoryRow({
   category,
   spent,
-  budget,
   prevSpent,
-  year,
-  month,
 }: {
   category: Category;
   spent: number;
-  budget: number | null;
   prevSpent: number;
-  year: number;
-  month: number;
 }) {
-  const hasBudget = budget !== null && budget > 0;
-  const pct = hasBudget ? Math.min(100, (spent / budget) * 100) : 0;
-  const overBudget = hasBudget && spent > budget;
-
   let trend: { label: string; positive: boolean } | null = null;
   if (prevSpent > 0) {
     const changePct = ((spent - prevSpent) / prevSpent) * 100;
@@ -329,92 +313,30 @@ function CategoryRow({
 
   return (
     <li className="rounded-xl border border-neutral-100 bg-white p-3">
-      <details className="group">
-        <summary className="cursor-pointer list-none">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <CategoryIcon name={category.name} color={category.color} />
-              <span className="truncate text-sm font-medium">
-                {category.name}
-              </span>
-              {trend ? (
-                <span
-                  className={`flex shrink-0 items-center gap-0.5 text-[10px] font-semibold ${
-                    trend.positive ? "text-emerald-600" : "text-rose-500"
-                  }`}
-                >
-                  {trend.positive ? (
-                    <TrendingDown size={10} />
-                  ) : (
-                    <TrendingUp size={10} />
-                  )}
-                  {trend.label}
-                </span>
-              ) : null}
-            </div>
-            <div className="shrink-0 text-right">
-              <p className="text-sm font-semibold tabular-nums">
-                <span className={overBudget ? "text-rose-600" : ""}>
-                  {spent.toLocaleString("ko-KR")}
-                </span>
-                {hasBudget ? (
-                  <span className="text-neutral-400">
-                    {" "}/ {budget.toLocaleString("ko-KR")}
-                  </span>
-                ) : null}
-                <span className="ml-0.5 text-xs text-neutral-400">원</span>
-              </p>
-            </div>
-          </div>
-          {hasBudget ? (
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-100">
-              <div
-                className={`h-full rounded-full transition-all ${
-                  overBudget ? "bg-rose-500" : "bg-emerald-400"
-                }`}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <CategoryIcon name={category.name} color={category.color} />
+          <span className="truncate text-sm font-medium">{category.name}</span>
+          {trend ? (
+            <span
+              className={`flex shrink-0 items-center gap-0.5 text-[10px] font-semibold ${
+                trend.positive ? "text-emerald-600" : "text-rose-500"
+              }`}
+            >
+              {trend.positive ? (
+                <TrendingDown size={10} />
+              ) : (
+                <TrendingUp size={10} />
+              )}
+              {trend.label}
+            </span>
           ) : null}
-          {overBudget ? (
-            <p className="mt-1 flex items-center gap-1 text-xs text-rose-600">
-              <AlertCircle size={11} />
-              예산을 {(spent - (budget ?? 0)).toLocaleString("ko-KR")}원
-              초과했어요
-            </p>
-          ) : null}
-        </summary>
-
-        {/* 예산 입력 폼 */}
-        <form
-          action={setBudget}
-          className="mt-3 flex items-center gap-2 border-t border-neutral-100 pt-3"
-        >
-          <input type="hidden" name="category_id" value={category.id} />
-          <input type="hidden" name="year" value={year} />
-          <input type="hidden" name="month" value={month} />
-          <input
-            type="hidden"
-            name="returnTo"
-            value={`/stats?year=${year}&month=${month}`}
-          />
-          <label className="text-xs text-neutral-500">예산</label>
-          <input
-            name="amount"
-            type="number"
-            min={0}
-            defaultValue={budget ?? ""}
-            placeholder="0 = 해제"
-            className="flex-1 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm tabular-nums outline-none focus:border-rose-400"
-          />
-          <button
-            type="submit"
-            className="rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-600"
-          >
-            저장
-          </button>
-        </form>
-      </details>
+        </div>
+        <p className="shrink-0 text-sm font-semibold tabular-nums">
+          {spent.toLocaleString("ko-KR")}
+          <span className="ml-0.5 text-xs text-neutral-400">원</span>
+        </p>
+      </div>
     </li>
   );
 }

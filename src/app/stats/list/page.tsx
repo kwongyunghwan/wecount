@@ -5,16 +5,16 @@ import { getTransactionsByFilter } from "@/lib/db/transactions";
 import { AppLayout } from "@/components/AppLayout";
 import { PartnerChip } from "@/components/PartnerChip";
 import { CategoryIcon } from "@/components/CategoryIcon";
-import { formatDate } from "@/lib/utils";
+import { formatDate, txDisplay } from "@/lib/utils";
 
 type Payer = "a" | "b" | "shared";
-type Type = "income" | "expense";
+type Type = "income" | "expense" | "savings";
 
 function isPayer(v: string | undefined): v is Payer {
   return v === "a" || v === "b" || v === "shared";
 }
 function isType(v: string | undefined): v is Type {
-  return v === "income" || v === "expense";
+  return v === "income" || v === "expense" || v === "savings";
 }
 
 export default async function StatsListPage({
@@ -54,8 +54,7 @@ export default async function StatsListPage({
           ? "공동"
           : "전체";
   const periodLabel = month ? `${year}년 ${month}월` : `${year}년`;
-  const typeLabel =
-    type === "expense" ? "지출" : type === "income" ? "수입" : "거래";
+  const typeLabel = type ? txDisplay(type).label : "거래";
 
   const title = `${personLabel} ${periodLabel} ${typeLabel}`;
   const backHref = month
@@ -71,10 +70,10 @@ export default async function StatsListPage({
         </p>
         <p
           className={`mt-1 text-lg font-bold tabular-nums ${
-            type === "income" ? "text-emerald-600" : "text-rose-600"
+            type ? txDisplay(type).textClass : "text-neutral-700"
           }`}
         >
-          {type === "income" ? "+" : "-"}
+          {type ? txDisplay(type).sign : ""}
           {total.toLocaleString("ko-KR")}원
         </p>
       </div>
@@ -125,10 +124,10 @@ export default async function StatsListPage({
                 </div>
                 <p
                   className={`ml-2 shrink-0 text-sm font-semibold tabular-nums ${
-                    tx.type === "income" ? "text-emerald-600" : "text-rose-600"
+                    txDisplay(tx.type).textClass
                   }`}
                 >
-                  {tx.type === "income" ? "+" : "-"}
+                  {txDisplay(tx.type).sign}
                   {tx.amount.toLocaleString("ko-KR")}원
                 </p>
               </Link>

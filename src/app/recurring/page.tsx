@@ -4,6 +4,7 @@ import { requireCouple } from "@/lib/session";
 import { getRecurringTransactions } from "@/lib/db/recurring";
 import { AppLayout } from "@/components/AppLayout";
 import { PartnerChip } from "@/components/PartnerChip";
+import { txDisplay } from "@/lib/utils";
 import {
   deleteRecurring,
   toggleRecurring,
@@ -85,10 +86,10 @@ export default async function RecurringPage() {
                 </Link>
                 <p
                   className={`shrink-0 text-sm font-bold tabular-nums ${
-                    r.type === "income" ? "text-emerald-600" : "text-rose-600"
+                    txDisplay(r.type).textClass
                   }`}
                 >
-                  {r.type === "income" ? "+" : "-"}
+                  {txDisplay(r.type).sign}
                   {r.amount.toLocaleString("ko-KR")}원
                 </p>
               </div>

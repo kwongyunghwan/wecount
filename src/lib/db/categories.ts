@@ -5,7 +5,7 @@ export type Category = {
   id: string;
   couple_id: string;
   name: string;
-  type: "income" | "expense";
+  type: "income" | "expense" | "savings";
   color: string | null;
   sort_order: number;
 };

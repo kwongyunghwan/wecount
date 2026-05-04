@@ -6,7 +6,7 @@ export type RecurringTransaction = {
   couple_id: string;
   category_id: string | null;
   name: string;
-  type: "income" | "expense";
+  type: "income" | "expense" | "savings";
   amount: number;
   paid_by: "a" | "b";
   is_shared: boolean;

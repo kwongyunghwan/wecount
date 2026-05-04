@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireCouple } from "@/lib/session";
 import { getGoal } from "@/lib/db/savings";
 import { AppLayout } from "@/components/AppLayout";
+import { AmountInput } from "@/components/AmountInput";
 import { updateGoal } from "@/app/actions/savings";
 
 const COLOR_PRESETS = [
@@ -42,17 +43,12 @@ export default async function EditGoalPage({
           />
         </div>
 
-        <div className="space-y-1.5">
-          <label className="block text-sm font-medium">목표 금액 (원)</label>
-          <input
-            name="target_amount"
-            type="number"
-            min={1}
-            defaultValue={goal.target_amount}
-            className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 outline-none transition focus:border-rose-400 focus:ring-2 focus:ring-rose-100"
-            required
-          />
-        </div>
+        <AmountInput
+          name="target_amount"
+          label="목표 금액 (원)"
+          defaultValue={goal.target_amount}
+          required
+        />
 
         <div className="space-y-1.5">
           <label className="block text-sm font-medium">

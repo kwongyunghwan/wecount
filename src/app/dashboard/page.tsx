@@ -7,13 +7,10 @@ import {
   Plus,
   ChevronRight,
   Users,
-  Wallet,
   Receipt,
+  PiggyBank,
 } from "lucide-react";
-import {
-  PartnerChip,
-  PARTNER_TEXT_COLOR,
-} from "@/components/PartnerChip";
+import { PartnerChip } from "@/components/PartnerChip";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { requireCouple } from "@/lib/session";
 import {
@@ -29,7 +26,7 @@ import { PinnedMemoCard } from "@/components/PinnedMemoCard";
 import { SectionHeader } from "@/components/SectionHeader";
 import { Target } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
-import { formatDate, currentYearMonth } from "@/lib/utils";
+import { formatDate, currentYearMonth, txDisplay } from "@/lib/utils";
 
 export default async function DashboardPage() {
   const couple = await requireCouple();
@@ -68,7 +65,7 @@ export default async function DashboardPage() {
               <Plus size={13} strokeWidth={2.5} /> 추가
             </Link>
           </div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <SummaryCard
               label="수입"
               amount={summary.income}
@@ -84,7 +81,14 @@ export default async function DashboardPage() {
               icon={TrendingDown}
             />
             <SummaryCard
-              label="순수익"
+              label="저금"
+              amount={summary.savings}
+              colorClass="text-blue-600"
+              prefix="-"
+              icon={PiggyBank}
+            />
+            <SummaryCard
+              label="잔액"
               amount={Math.abs(summary.net)}
               colorClass={summary.net >= 0 ? "text-emerald-600" : "text-rose-600"}
               prefix={summary.net >= 0 ? "+" : "-"}
@@ -93,13 +97,13 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        {/* 사람별 지출 */}
+        {/* 이번 달 잔액 */}
         <section>
           <SectionHeader
-            icon={Wallet}
+            icon={Users}
             iconColor="text-rose-500"
             accentColor="bg-rose-400"
-            title="이번 달 지출"
+            title="이번 달 잔액"
             right={
               <Link
                 href="/stats"
@@ -110,30 +114,25 @@ export default async function DashboardPage() {
             }
           />
           <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-xl border border-sky-100 bg-sky-50/50 p-3">
-              <p className={`text-xs font-medium ${PARTNER_TEXT_COLOR.a}`}>
-                {couple.partner_a_name}
-              </p>
-              <p className="mt-1 text-sm font-bold tabular-nums text-neutral-800">
-                {personSummary.a.expense.toLocaleString("ko-KR")}원
-              </p>
-            </div>
-            <div className="rounded-xl border border-violet-100 bg-violet-50/50 p-3">
-              <p className={`text-xs font-medium ${PARTNER_TEXT_COLOR.b}`}>
-                {couple.partner_b_name}
-              </p>
-              <p className="mt-1 text-sm font-bold tabular-nums text-neutral-800">
-                {personSummary.b.expense.toLocaleString("ko-KR")}원
-              </p>
-            </div>
-            <div className="rounded-xl border border-rose-100 bg-rose-50/50 p-3">
-              <p className="flex items-center gap-1 text-xs font-medium text-rose-600">
-                <Users size={11} /> 공동
-              </p>
-              <p className="mt-1 text-sm font-bold tabular-nums text-neutral-800">
-                {personSummary.shared.expense.toLocaleString("ko-KR")}원
-              </p>
-            </div>
+            <PartnerNetCard
+              name={couple.partner_a_name}
+              income={personSummary.a.income}
+              expense={personSummary.a.expense}
+              savings={personSummary.a.savings}
+              tone="a"
+            />
+            <PartnerNetCard
+              name={couple.partner_b_name}
+              income={personSummary.b.income}
+              expense={personSummary.b.expense}
+              savings={personSummary.b.savings}
+              tone="b"
+            />
+            <SharedExpenseCard
+              income={personSummary.shared.income}
+              expense={personSummary.shared.expense}
+              savings={personSummary.shared.savings}
+            />
           </div>
         </section>
 
@@ -255,12 +254,10 @@ export default async function DashboardPage() {
                     </div>
                     <p
                       className={`ml-2 shrink-0 text-sm font-semibold tabular-nums ${
-                        tx.type === "income"
-                          ? "text-emerald-600"
-                          : "text-rose-600"
+                        txDisplay(tx.type).textClass
                       }`}
                     >
-                      {tx.type === "income" ? "+" : "-"}
+                      {txDisplay(tx.type).sign}
                       {tx.amount.toLocaleString("ko-KR")}원
                     </p>
                   </Link>
@@ -271,6 +268,89 @@ export default async function DashboardPage() {
         </section>
       </div>
     </AppLayout>
+  );
+}
+
+function PartnerNetCard({
+  name,
+  income,
+  expense,
+  savings,
+  tone,
+}: {
+  name: string;
+  income: number;
+  expense: number;
+  savings: number;
+  tone: "a" | "b";
+}) {
+  const balance = income - expense - savings;
+  const containerClass = "border-neutral-100 bg-white";
+  const nameClass = tone === "a" ? "text-sky-600" : "text-violet-600";
+  const balanceClass = balance >= 0 ? "text-blue-600" : "text-rose-600";
+
+  return (
+    <div className={`rounded-xl border p-2.5 ${containerClass}`}>
+      <p className={`truncate text-xs font-medium ${nameClass}`}>{name}</p>
+      <div className="mt-1.5 space-y-0.5">
+        <p className="text-[11px] tabular-nums text-emerald-600">
+          +{income.toLocaleString("ko-KR")}
+        </p>
+        <p className="text-[11px] tabular-nums text-rose-600">
+          -{expense.toLocaleString("ko-KR")}
+        </p>
+        <p className="text-[11px] tabular-nums text-blue-600">
+          -{savings.toLocaleString("ko-KR")}{" "}
+          <span className="text-neutral-400">저금</span>
+        </p>
+        <p
+          className={`border-t border-neutral-200/60 pt-1 text-sm font-bold tabular-nums ${balanceClass}`}
+        >
+          {balance >= 0 ? "+" : ""}
+          {balance.toLocaleString("ko-KR")}원
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function SharedExpenseCard({
+  income,
+  expense,
+  savings,
+}: {
+  income: number;
+  expense: number;
+  savings: number;
+}) {
+  // 공동도 사람 카드와 같은 식: balance = income - expense - savings
+  const balance = income - expense - savings;
+  const balanceClass = balance >= 0 ? "text-blue-600" : "text-rose-600";
+
+  return (
+    <div className="rounded-xl border border-neutral-100 bg-white p-2.5">
+      <p className="flex items-center gap-1 truncate text-xs font-medium text-rose-600">
+        <Users size={11} /> 공동
+      </p>
+      <div className="mt-1.5 space-y-0.5">
+        <p className="text-[11px] tabular-nums text-emerald-600">
+          +{income.toLocaleString("ko-KR")}
+        </p>
+        <p className="text-[11px] tabular-nums text-rose-600">
+          -{expense.toLocaleString("ko-KR")}
+        </p>
+        <p className="text-[11px] tabular-nums text-blue-600">
+          -{savings.toLocaleString("ko-KR")}{" "}
+          <span className="text-neutral-400">저금</span>
+        </p>
+        <p
+          className={`border-t border-neutral-200/60 pt-1 text-sm font-bold tabular-nums ${balanceClass}`}
+        >
+          {balance >= 0 ? "+" : ""}
+          {balance.toLocaleString("ko-KR")}원
+        </p>
+      </div>
+    </div>
   );
 }
 
