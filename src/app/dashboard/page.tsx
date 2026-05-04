@@ -7,6 +7,8 @@ import {
   Plus,
   ChevronRight,
   Users,
+  Wallet,
+  Receipt,
 } from "lucide-react";
 import {
   PartnerChip,
@@ -21,7 +23,10 @@ import {
 } from "@/lib/db/transactions";
 import { processRecurringForCouple } from "@/lib/db/recurring";
 import { getActiveGoals } from "@/lib/db/savings";
+import { getPinnedMemos } from "@/lib/db/memos";
 import { GoalProgress } from "@/components/GoalProgress";
+import { PinnedMemoCard } from "@/components/PinnedMemoCard";
+import { SectionHeader } from "@/components/SectionHeader";
 import { Target } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { formatDate, currentYearMonth } from "@/lib/utils";
@@ -34,22 +39,28 @@ export default async function DashboardPage() {
 
   const { year, month } = currentYearMonth();
 
-  const [summary, recent, personSummary, activeGoals] = await Promise.all([
-    getMonthlySummary(couple.id, year, month),
-    getRecentTransactions(couple.id, 5),
-    getPersonSummary(couple.id, year, month),
-    getActiveGoals(couple.id, 3),
-  ]);
+  const [summary, recent, personSummary, activeGoals, pinnedMemos] =
+    await Promise.all([
+      getMonthlySummary(couple.id, year, month),
+      getRecentTransactions(couple.id, 5),
+      getPersonSummary(couple.id, year, month),
+      getActiveGoals(couple.id, 3),
+      getPinnedMemos(couple.id),
+    ]);
 
   return (
     <AppLayout couple={couple}>
       <div className="space-y-6">
         {/* 이번 달 요약 */}
         <section>
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm font-medium text-neutral-500">
-              {year}년 {month}월
-            </p>
+          <div className="mb-3 flex items-end justify-between">
+            <div className="flex items-baseline gap-1.5">
+              <p className="text-2xl font-bold tracking-tight text-neutral-900">
+                {year}년{" "}
+                <span className="text-rose-500">{month}월</span>
+              </p>
+              <span className="text-xs text-neutral-400">요약</span>
+            </div>
             <Link
               href="/transactions/new"
               className="flex items-center gap-1 rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-600"
@@ -84,15 +95,20 @@ export default async function DashboardPage() {
 
         {/* 사람별 지출 */}
         <section>
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-medium">이번 달 지출</p>
-            <Link
-              href="/stats"
-              className="flex items-center gap-0.5 text-xs text-neutral-500 hover:text-neutral-700"
-            >
-              자세히 <ChevronRight size={12} />
-            </Link>
-          </div>
+          <SectionHeader
+            icon={Wallet}
+            iconColor="text-rose-500"
+            accentColor="bg-rose-400"
+            title="이번 달 지출"
+            right={
+              <Link
+                href="/stats"
+                className="flex items-center gap-0.5 text-xs text-neutral-500 hover:text-neutral-700"
+              >
+                자세히 <ChevronRight size={12} />
+              </Link>
+            }
+          />
           <div className="grid grid-cols-3 gap-2">
             <div className="rounded-xl border border-sky-100 bg-sky-50/50 p-3">
               <p className={`text-xs font-medium ${PARTNER_TEXT_COLOR.a}`}>
@@ -124,17 +140,20 @@ export default async function DashboardPage() {
         {/* 저축 목표 */}
         {activeGoals.length > 0 ? (
           <section>
-            <div className="mb-2 flex items-center justify-between">
-              <p className="flex items-center gap-1.5 text-sm font-medium">
-                <Target size={14} className="text-rose-500" /> 저축 목표
-              </p>
-              <Link
-                href="/goals"
-                className="flex items-center gap-0.5 text-xs text-neutral-500 hover:text-neutral-700"
-              >
-                전체보기 <ChevronRight size={12} />
-              </Link>
-            </div>
+            <SectionHeader
+              icon={Target}
+              iconColor="text-amber-500"
+              accentColor="bg-amber-400"
+              title="저축 목표"
+              right={
+                <Link
+                  href="/goals"
+                  className="flex items-center gap-0.5 text-xs text-neutral-500 hover:text-neutral-700"
+                >
+                  전체보기 <ChevronRight size={12} />
+                </Link>
+              }
+            />
             <ul className="space-y-2">
               {activeGoals.map((g) => (
                 <li key={g.id}>
@@ -168,17 +187,25 @@ export default async function DashboardPage() {
           </section>
         ) : null}
 
+        {/* 고정 메모 */}
+        <PinnedMemoCard memos={pinnedMemos} couple={couple} />
+
         {/* 최근 거래 */}
         <section>
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm font-medium">최근 거래</p>
-            <Link
-              href="/transactions"
-              className="flex items-center gap-0.5 text-xs text-neutral-500 hover:text-neutral-700"
-            >
-              전체보기 <ChevronRight size={12} />
-            </Link>
-          </div>
+          <SectionHeader
+            icon={Receipt}
+            iconColor="text-indigo-500"
+            accentColor="bg-indigo-400"
+            title="최근 거래"
+            right={
+              <Link
+                href="/transactions"
+                className="flex items-center gap-0.5 text-xs text-neutral-500 hover:text-neutral-700"
+              >
+                전체보기 <ChevronRight size={12} />
+              </Link>
+            }
+          />
 
           {recent.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-neutral-200 py-10 text-center">
