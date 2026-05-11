@@ -8,7 +8,7 @@ import {
   ChevronRight,
   Users,
   Receipt,
-  PiggyBank,
+  Wallet,
 } from "lucide-react";
 import { PartnerChip } from "@/components/PartnerChip";
 import { CategoryIcon } from "@/components/CategoryIcon";
@@ -19,6 +19,10 @@ import {
   getPersonSummary,
 } from "@/lib/db/transactions";
 import { processRecurringForCouple } from "@/lib/db/recurring";
+import {
+  processAccountAutoDeposits,
+  listAccountsWithStats,
+} from "@/lib/db/accounts";
 import { getActiveGoals } from "@/lib/db/savings";
 import { getPinnedMemos } from "@/lib/db/memos";
 import { GoalProgress } from "@/components/GoalProgress";
@@ -33,17 +37,30 @@ export default async function DashboardPage() {
 
   // 페이지 진입 시 오늘 기준 처리되지 않은 고정비를 자동 등록
   await processRecurringForCouple(couple.id);
+  // 매달 자동 입금 처리 (계좌 monthly_amount 설정된 경우)
+  await processAccountAutoDeposits(
+    couple.id,
+    couple.partner_a_name,
+    couple.partner_b_name,
+  );
 
   const { year, month } = currentYearMonth();
 
-  const [summary, recent, personSummary, activeGoals, pinnedMemos] =
-    await Promise.all([
-      getMonthlySummary(couple.id, year, month),
-      getRecentTransactions(couple.id, 5),
-      getPersonSummary(couple.id, year, month),
-      getActiveGoals(couple.id, 3),
-      getPinnedMemos(couple.id),
-    ]);
+  const [
+    summary,
+    recent,
+    personSummary,
+    activeGoals,
+    pinnedMemos,
+    accountStats,
+  ] = await Promise.all([
+    getMonthlySummary(couple.id, year, month),
+    getRecentTransactions(couple.id, 5),
+    getPersonSummary(couple.id, year, month),
+    getActiveGoals(couple.id, 3),
+    getPinnedMemos(couple.id),
+    listAccountsWithStats(couple.id),
+  ]);
 
   return (
     <AppLayout couple={couple}>
@@ -65,7 +82,7 @@ export default async function DashboardPage() {
               <Plus size={13} strokeWidth={2.5} /> 추가
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <SummaryCard
               label="수입"
               amount={summary.income}
@@ -81,13 +98,6 @@ export default async function DashboardPage() {
               icon={TrendingDown}
             />
             <SummaryCard
-              label="저금"
-              amount={summary.savings}
-              colorClass="text-blue-600"
-              prefix="-"
-              icon={PiggyBank}
-            />
-            <SummaryCard
               label="잔액"
               amount={Math.abs(summary.net)}
               colorClass={summary.net >= 0 ? "text-emerald-600" : "text-rose-600"}
@@ -97,13 +107,13 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        {/* 이번 달 잔액 */}
+        {/* 이번 달 잔액 — 개인별 */}
         <section>
           <SectionHeader
             icon={Users}
             iconColor="text-rose-500"
             accentColor="bg-rose-400"
-            title="이번 달 잔액"
+            title="이번 달 잔액 · 개인"
             right={
               <Link
                 href="/stats"
@@ -113,28 +123,54 @@ export default async function DashboardPage() {
               </Link>
             }
           />
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <PartnerNetCard
               name={couple.partner_a_name}
               income={personSummary.a.income}
               expense={personSummary.a.expense}
-              savings={personSummary.a.savings}
               tone="a"
             />
             <PartnerNetCard
               name={couple.partner_b_name}
               income={personSummary.b.income}
               expense={personSummary.b.expense}
-              savings={personSummary.b.savings}
               tone="b"
-            />
-            <SharedExpenseCard
-              income={personSummary.shared.income}
-              expense={personSummary.shared.expense}
-              savings={personSummary.shared.savings}
             />
           </div>
         </section>
+
+        {/* 계좌별 잔액 */}
+        {accountStats.length > 0 ? (
+          <section>
+            <SectionHeader
+              icon={Wallet}
+              iconColor="text-sky-500"
+              accentColor="bg-sky-400"
+              title="계좌별 잔액"
+              right={
+                <Link
+                  href="/accounts"
+                  className="flex items-center gap-0.5 text-xs text-neutral-500 hover:text-neutral-700"
+                >
+                  전체보기 <ChevronRight size={12} />
+                </Link>
+              }
+            />
+            <div className="grid grid-cols-2 gap-2">
+              {accountStats.map(({ account, total, used, remaining }) => (
+                <AccountBalanceCard
+                  key={account.id}
+                  id={account.id}
+                  name={account.name}
+                  color={account.color}
+                  total={total}
+                  used={used}
+                  remaining={remaining}
+                />
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {/* 저축 목표 */}
         {activeGoals.length > 0 ? (
@@ -224,13 +260,15 @@ export default async function DashboardPage() {
                     <div className="flex items-center gap-3 min-w-0">
                       <CategoryIcon
                         name={tx.categories?.name}
-                        color={tx.categories?.color}
+                        color={tx.accounts?.color ?? tx.categories?.color}
                       />
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <p className="truncate text-sm font-medium">
-                            {tx.categories?.name ?? "카테고리 없음"}
-                          </p>
+                          {tx.categories?.name ? (
+                            <p className="truncate text-sm font-medium">
+                              {tx.categories.name}
+                            </p>
+                          ) : null}
                           {tx.is_shared ? (
                             <span className="inline-flex shrink-0 items-center gap-0.5 rounded bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-600">
                               <Users size={9} /> 공동
@@ -275,22 +313,19 @@ function PartnerNetCard({
   name,
   income,
   expense,
-  savings,
   tone,
 }: {
   name: string;
   income: number;
   expense: number;
-  savings: number;
   tone: "a" | "b";
 }) {
-  const balance = income - expense - savings;
-  const containerClass = "border-neutral-100 bg-white";
+  const balance = income - expense;
   const nameClass = tone === "a" ? "text-sky-600" : "text-violet-600";
-  const balanceClass = balance >= 0 ? "text-blue-600" : "text-rose-600";
+  const balanceClass = balance >= 0 ? "text-emerald-600" : "text-rose-600";
 
   return (
-    <div className={`rounded-xl border p-2.5 ${containerClass}`}>
+    <div className="rounded-xl border border-neutral-100 bg-white p-3">
       <p className={`truncate text-xs font-medium ${nameClass}`}>{name}</p>
       <div className="mt-1.5 space-y-0.5">
         <p className="text-[11px] tabular-nums text-emerald-600">
@@ -298,10 +333,6 @@ function PartnerNetCard({
         </p>
         <p className="text-[11px] tabular-nums text-rose-600">
           -{expense.toLocaleString("ko-KR")}
-        </p>
-        <p className="text-[11px] tabular-nums text-blue-600">
-          -{savings.toLocaleString("ko-KR")}{" "}
-          <span className="text-neutral-400">저금</span>
         </p>
         <p
           className={`border-t border-neutral-200/60 pt-1 text-sm font-bold tabular-nums ${balanceClass}`}
@@ -314,43 +345,55 @@ function PartnerNetCard({
   );
 }
 
-function SharedExpenseCard({
-  income,
-  expense,
-  savings,
+function AccountBalanceCard({
+  id,
+  name,
+  color,
+  total,
+  used,
+  remaining,
 }: {
-  income: number;
-  expense: number;
-  savings: number;
+  id: string;
+  name: string;
+  color: string | null;
+  total: number;
+  used: number;
+  remaining: number;
 }) {
-  // 공동도 사람 카드와 같은 식: balance = income - expense - savings
-  const balance = income - expense - savings;
-  const balanceClass = balance >= 0 ? "text-blue-600" : "text-rose-600";
+  const c = color ?? "#737373";
+  const balanceClass = remaining >= 0 ? "text-emerald-600" : "text-rose-600";
 
   return (
-    <div className="rounded-xl border border-neutral-100 bg-white p-2.5">
-      <p className="flex items-center gap-1 truncate text-xs font-medium text-rose-600">
-        <Users size={11} /> 공동
-      </p>
+    <Link
+      href={`/accounts/${id}`}
+      className="block rounded-xl border border-neutral-100 bg-white p-3 transition hover:bg-neutral-50"
+    >
+      <div className="flex items-center gap-1.5">
+        <span
+          className="h-2 w-2 shrink-0 rounded-full"
+          style={{ backgroundColor: c }}
+        />
+        <p
+          className="truncate text-xs font-medium"
+          style={{ color: c }}
+        >
+          {name}
+        </p>
+      </div>
       <div className="mt-1.5 space-y-0.5">
         <p className="text-[11px] tabular-nums text-emerald-600">
-          +{income.toLocaleString("ko-KR")}
+          +{total.toLocaleString("ko-KR")}
         </p>
         <p className="text-[11px] tabular-nums text-rose-600">
-          -{expense.toLocaleString("ko-KR")}
-        </p>
-        <p className="text-[11px] tabular-nums text-blue-600">
-          -{savings.toLocaleString("ko-KR")}{" "}
-          <span className="text-neutral-400">저금</span>
+          -{used.toLocaleString("ko-KR")}
         </p>
         <p
           className={`border-t border-neutral-200/60 pt-1 text-sm font-bold tabular-nums ${balanceClass}`}
         >
-          {balance >= 0 ? "+" : ""}
-          {balance.toLocaleString("ko-KR")}원
+          {remaining.toLocaleString("ko-KR")}원
         </p>
       </div>
-    </div>
+    </Link>
   );
 }
 

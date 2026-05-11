@@ -1,20 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { Users, User } from "lucide-react";
 import type { Category } from "@/lib/db/categories";
+import type { Account } from "@/lib/db/accounts";
 import { AmountInput } from "@/components/AmountInput";
+import { CategorySelect } from "@/components/CategorySelect";
 
-type TxType = "income" | "expense" | "savings";
+type TxType = "income" | "expense";
 
 type Props = {
   categories: Category[];
   partnerAName: string;
   partnerBName: string;
+  accounts?: Account[];
+  lockedAccountId?: string;
   defaultValues?: {
     name: string;
     type: TxType;
     category_id: string | null;
+    account_id?: string | null;
     amount: number;
     paid_by: "a" | "b";
     is_shared: boolean;
@@ -29,19 +33,19 @@ type Props = {
 const TYPE_BTN_ACTIVE: Record<TxType, string> = {
   expense: "bg-rose-500 text-white shadow-sm",
   income: "bg-emerald-500 text-white shadow-sm",
-  savings: "bg-blue-500 text-white shadow-sm",
 };
 
 const TYPE_LABEL: Record<TxType, string> = {
   expense: "지출",
   income: "수입",
-  savings: "저금",
 };
 
 export function RecurringForm({
   categories,
   partnerAName,
   partnerBName,
+  accounts = [],
+  lockedAccountId,
   defaultValues,
   idField,
   action,
@@ -53,10 +57,13 @@ export function RecurringForm({
   const [paidBy, setPaidBy] = useState<"a" | "b">(
     defaultValues?.paid_by ?? "a",
   );
-  const [isShared, setIsShared] = useState<boolean>(
-    defaultValues?.is_shared ?? true,
+  const [accountId, setAccountId] = useState<string>(
+    lockedAccountId ?? defaultValues?.account_id ?? "",
   );
   const filtered = categories.filter((c) => c.type === type);
+  const lockedAccount = lockedAccountId
+    ? accounts.find((a) => a.id === lockedAccountId)
+    : null;
 
   return (
     <form action={action} className="space-y-5">
@@ -76,9 +83,9 @@ export function RecurringForm({
         />
       </div>
 
-      {/* 수입/지출/저금 */}
+      {/* 수입/지출 */}
       <div className="flex rounded-xl border border-neutral-200 bg-white p-1">
-        {(["expense", "income", "savings"] as const).map((t) => (
+        {(["expense", "income"] as const).map((t) => (
           <button
             key={t}
             type="button"
@@ -123,41 +130,49 @@ export function RecurringForm({
           })}
         </div>
         <input type="hidden" name="paid_by" value={paidBy} />
+        <input type="hidden" name="is_shared" value="false" />
       </div>
 
-      {/* 공동/개인 */}
-      <div className="space-y-1.5">
-        <label className="block text-sm font-medium">공동/개인</label>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setIsShared(true)}
-            className={`flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-sm font-semibold transition ${
-              isShared
-                ? "border-rose-400 bg-rose-50 text-rose-600"
-                : "border-neutral-200 bg-white text-neutral-500"
-            }`}
-          >
-            <Users size={14} /> 공동
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsShared(false)}
-            className={`flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-sm font-semibold transition ${
-              !isShared
-                ? "border-neutral-400 bg-neutral-100 text-neutral-700"
-                : "border-neutral-200 bg-white text-neutral-500"
-            }`}
-          >
-            <User size={14} /> 개인
-          </button>
+      {/* 계좌 (선택) */}
+      {lockedAccount ? (
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium">계좌</label>
+          <input type="hidden" name="account_id" value={lockedAccount.id} />
+          <div className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm font-medium text-neutral-700">
+            <span
+              className="h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: lockedAccount.color ?? "#f43f5e" }}
+            />
+            {lockedAccount.name}
+          </div>
         </div>
-        <input
-          type="hidden"
-          name="is_shared"
-          value={isShared ? "true" : "false"}
-        />
-      </div>
+      ) : accounts.length > 0 ? (
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium">
+            계좌 <span className="font-normal text-neutral-400">(선택)</span>
+          </label>
+          <select
+            name="account_id"
+            value={accountId}
+            onChange={(e) => setAccountId(e.target.value)}
+            className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 outline-none transition focus:border-rose-400 focus:ring-2 focus:ring-rose-100"
+          >
+            <option value="">선택 안 함 (일반 고정비)</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+          {accountId ? (
+            <p className="text-xs text-neutral-400">
+              선택한 계좌 잔액에서 차감돼요.
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <input type="hidden" name="account_id" value="" />
+      )}
 
       {/* 매달 며칠 */}
       <div className="space-y-1.5">
@@ -179,18 +194,12 @@ export function RecurringForm({
       {/* 카테고리 */}
       <div className="space-y-1.5">
         <label className="block text-sm font-medium">카테고리</label>
-        <select
+        <CategorySelect
+          key={type}
           name="category_id"
-          defaultValue={defaultValues?.category_id ?? ""}
-          className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 outline-none transition focus:border-rose-400 focus:ring-2 focus:ring-rose-100"
-        >
-          <option value="">카테고리 없음</option>
-          {filtered.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+          categories={filtered}
+          defaultValue={defaultValues?.category_id ?? null}
+        />
       </div>
 
       {/* 금액 */}

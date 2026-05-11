@@ -229,13 +229,15 @@ export function TransactionsView({
                   <div className="flex min-w-0 items-center gap-3">
                     <CategoryIcon
                       name={tx.categories?.name}
-                      color={tx.categories?.color}
+                      color={tx.accounts?.color ?? tx.categories?.color}
                     />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <p className="truncate text-sm font-medium">
-                          {tx.categories?.name ?? "카테고리 없음"}
-                        </p>
+                        {tx.categories?.name ? (
+                          <p className="truncate text-sm font-medium">
+                            {tx.categories.name}
+                          </p>
+                        ) : null}
                         {tx.is_shared ? (
                           <span className="inline-flex shrink-0 items-center gap-0.5 rounded bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-600">
                             <Users size={9} /> 공동

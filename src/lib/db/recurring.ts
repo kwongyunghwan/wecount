@@ -5,6 +5,7 @@ export type RecurringTransaction = {
   id: string;
   couple_id: string;
   category_id: string | null;
+  account_id: string | null;
   name: string;
   type: "income" | "expense" | "savings";
   amount: number;
@@ -17,6 +18,7 @@ export type RecurringTransaction = {
   last_run_month: number | null;
   created_at: string;
   categories?: { id: string; name: string; color: string | null } | null;
+  accounts?: { id: string; name: string; color: string | null } | null;
 };
 
 export async function getRecurringTransactions(
@@ -25,7 +27,7 @@ export async function getRecurringTransactions(
   const { data, error } = await supabaseAdmin
     .from("recurring_transactions")
     .select(
-      "id, couple_id, category_id, name, type, amount, paid_by, is_shared, day_of_month, memo, is_active, last_run_year, last_run_month, created_at, categories(id, name, color)",
+      "id, couple_id, category_id, account_id, name, type, amount, paid_by, is_shared, day_of_month, memo, is_active, last_run_year, last_run_month, created_at, categories(id, name, color), accounts(id, name, color)",
     )
     .eq("couple_id", coupleId)
     .order("day_of_month");
@@ -41,7 +43,7 @@ export async function getRecurring(
   const { data, error } = await supabaseAdmin
     .from("recurring_transactions")
     .select(
-      "id, couple_id, category_id, name, type, amount, paid_by, is_shared, day_of_month, memo, is_active, last_run_year, last_run_month, created_at, categories(id, name, color)",
+      "id, couple_id, category_id, account_id, name, type, amount, paid_by, is_shared, day_of_month, memo, is_active, last_run_year, last_run_month, created_at, categories(id, name, color), accounts(id, name, color)",
     )
     .eq("couple_id", coupleId)
     .eq("id", id)
@@ -49,6 +51,23 @@ export async function getRecurring(
 
   if (error) throw error;
   return data as unknown as RecurringTransaction | null;
+}
+
+export async function getRecurringByAccount(
+  coupleId: string,
+  accountId: string,
+): Promise<RecurringTransaction[]> {
+  const { data, error } = await supabaseAdmin
+    .from("recurring_transactions")
+    .select(
+      "id, couple_id, category_id, account_id, name, type, amount, paid_by, is_shared, day_of_month, memo, is_active, last_run_year, last_run_month, created_at, categories(id, name, color), accounts(id, name, color)",
+    )
+    .eq("couple_id", coupleId)
+    .eq("account_id", accountId)
+    .order("day_of_month");
+
+  if (error) throw error;
+  return (data ?? []) as unknown as RecurringTransaction[];
 }
 
 /**
@@ -86,6 +105,7 @@ export async function processRecurringForCouple(
       .insert({
         couple_id: coupleId,
         category_id: r.category_id,
+        account_id: r.account_id,
         type: r.type,
         amount: r.amount,
         memo: r.memo ? `${r.name} · ${r.memo}` : `${r.name} (자동)`,

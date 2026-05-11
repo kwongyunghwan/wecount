@@ -9,6 +9,7 @@ export type Transaction = {
   id: string;
   couple_id: string;
   category_id: string | null;
+  account_id: string | null;
   type: TransactionType;
   amount: number;
   memo: string | null;
@@ -17,6 +18,7 @@ export type Transaction = {
   paid_by: PaidBy;
   is_shared: boolean;
   categories: { id: string; name: string; color: string | null } | null;
+  accounts: { id: string; name: string; color: string | null } | null;
 };
 
 export type MonthlySummary = {
@@ -48,7 +50,7 @@ export type CategoryBreakdownRow = {
 };
 
 const SELECT_COLS =
-  "id, couple_id, category_id, type, amount, memo, occurred_at, created_at, paid_by, is_shared, categories(id, name, color)";
+  "id, couple_id, category_id, account_id, type, amount, memo, occurred_at, created_at, paid_by, is_shared, categories(id, name, color), accounts(id, name, color)";
 
 function monthRange(year: number, month: number): [string, string] {
   const m = String(month).padStart(2, "0");
@@ -158,6 +160,7 @@ export async function getMonthlySummary(
     .from("transactions")
     .select("type, amount")
     .eq("couple_id", coupleId)
+    .is("account_id", null)
     .gte("occurred_at", from)
     .lte("occurred_at", to);
 
@@ -183,6 +186,7 @@ export async function getPersonSummary(
     .from("transactions")
     .select("type, amount, paid_by, is_shared")
     .eq("couple_id", coupleId)
+    .is("account_id", null)
     .gte("occurred_at", from)
     .lte("occurred_at", to);
 
@@ -220,6 +224,7 @@ export async function getCategoryBreakdown(
     .select("amount, category_id, categories(id, name, color)")
     .eq("couple_id", coupleId)
     .eq("type", type)
+    .is("account_id", null)
     .gte("occurred_at", from)
     .lte("occurred_at", to);
 
@@ -275,6 +280,7 @@ export async function getYearlyMonthBreakdown(
     .from("transactions")
     .select("type, amount, occurred_at")
     .eq("couple_id", coupleId)
+    .is("account_id", null)
     .gte("occurred_at", from)
     .lte("occurred_at", to);
 
@@ -311,6 +317,7 @@ export async function getYearlyPersonSummary(
     .from("transactions")
     .select("type, amount, paid_by, is_shared")
     .eq("couple_id", coupleId)
+    .is("account_id", null)
     .gte("occurred_at", from)
     .lte("occurred_at", to);
 
@@ -348,6 +355,7 @@ export async function getYearlyCategoryBreakdown(
     .select("amount, category_id, categories(id, name, color)")
     .eq("couple_id", coupleId)
     .eq("type", type)
+    .is("account_id", null)
     .gte("occurred_at", from)
     .lte("occurred_at", to);
 
@@ -396,6 +404,7 @@ export async function getCategoryAmountsByMonth(
     .select("amount, category_id")
     .eq("couple_id", coupleId)
     .eq("type", type)
+    .is("account_id", null)
     .gte("occurred_at", from)
     .lte("occurred_at", to);
 

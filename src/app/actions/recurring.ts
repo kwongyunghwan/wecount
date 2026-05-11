@@ -8,12 +8,16 @@ function parseFields(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const type = String(formData.get("type") ?? "expense") as
     | "income"
-    | "expense"
-    | "savings";
+    | "expense";
   const rawCategoryId = formData.get("category_id");
   const category_id =
     rawCategoryId && String(rawCategoryId).trim() !== ""
       ? String(rawCategoryId)
+      : null;
+  const rawAccountId = formData.get("account_id");
+  const account_id =
+    rawAccountId && String(rawAccountId).trim() !== ""
+      ? String(rawAccountId)
       : null;
   const amount = parseInt(String(formData.get("amount") ?? "0"), 10);
   const paid_by = String(formData.get("paid_by") ?? "a") as "a" | "b";
@@ -27,6 +31,7 @@ function parseFields(formData: FormData) {
     name,
     type,
     category_id,
+    account_id,
     amount,
     paid_by,
     is_shared,
@@ -55,7 +60,10 @@ export async function createRecurring(formData: FormData) {
     ...fields,
   });
 
-  redirect("/recurring");
+  const redirectTo = fields.account_id
+    ? `/accounts/${fields.account_id}`
+    : "/recurring";
+  redirect(redirectTo);
 }
 
 export async function updateRecurring(formData: FormData) {

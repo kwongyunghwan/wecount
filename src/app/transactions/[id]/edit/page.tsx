@@ -29,7 +29,7 @@ export default async function EditTransactionPage({
           partnerAName={couple.partner_a_name}
           partnerBName={couple.partner_b_name}
           defaultValues={{
-            type: tx.type,
+            type: tx.type === "income" ? "income" : "expense",
             category_id: tx.category_id,
             amount: tx.amount,
             memo: tx.memo,

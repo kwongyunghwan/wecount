@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireCouple } from "@/lib/session";
 import { getRecurring } from "@/lib/db/recurring";
 import { getCategories } from "@/lib/db/categories";
+import { getAccounts } from "@/lib/db/accounts";
 import { AppLayout } from "@/components/AppLayout";
 import { RecurringForm } from "@/components/RecurringForm";
 import {
@@ -17,9 +18,10 @@ export default async function EditRecurringPage({
   const couple = await requireCouple();
   const { id } = await params;
 
-  const [item, categories] = await Promise.all([
+  const [item, categories, accounts] = await Promise.all([
     getRecurring(couple.id, id),
     getCategories(couple.id),
+    getAccounts(couple.id),
   ]);
 
   if (!item) notFound();
@@ -29,12 +31,14 @@ export default async function EditRecurringPage({
       <div className="space-y-4">
         <RecurringForm
           categories={categories}
+          accounts={accounts}
           partnerAName={couple.partner_a_name}
           partnerBName={couple.partner_b_name}
           defaultValues={{
             name: item.name,
-            type: item.type,
+            type: item.type === "income" ? "income" : "expense",
             category_id: item.category_id,
+            account_id: item.account_id,
             amount: item.amount,
             paid_by: item.paid_by,
             is_shared: item.is_shared,

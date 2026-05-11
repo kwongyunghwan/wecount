@@ -10,6 +10,7 @@ export function GoalProgress({ current, target, percent, color, size = "md" }: P
   const barColor = color ?? "#f43f5e";
   const reached = percent >= 100;
   const heightClass = size === "sm" ? "h-1.5" : "h-2.5";
+  const remaining = Math.max(0, target - current);
 
   return (
     <div>
@@ -19,6 +20,11 @@ export function GoalProgress({ current, target, percent, color, size = "md" }: P
           <span className="text-neutral-400">
             {" "}/ {target.toLocaleString("ko-KR")}원
           </span>
+          {!reached ? (
+            <span className="ml-1 font-normal text-neutral-400">
+              ({remaining.toLocaleString("ko-KR")}원 남음)
+            </span>
+          ) : null}
         </span>
         <span
           className={`tabular-nums font-semibold ${

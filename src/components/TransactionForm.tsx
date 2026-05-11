@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Users, User } from "lucide-react";
 import type { Category } from "@/lib/db/categories";
 import { CategorySelect } from "@/components/CategorySelect";
 import { AmountInput } from "@/components/AmountInput";
 
-type TxType = "income" | "expense" | "savings";
+type TxType = "income" | "expense";
 
 type Props = {
   categories: Category[];
@@ -31,13 +30,11 @@ type Props = {
 const TYPE_BTN_ACTIVE: Record<TxType, string> = {
   expense: "bg-rose-500 text-white shadow-sm",
   income: "bg-emerald-500 text-white shadow-sm",
-  savings: "bg-blue-500 text-white shadow-sm",
 };
 
 const TYPE_LABEL: Record<TxType, string> = {
   expense: "지출",
   income: "수입",
-  savings: "저금",
 };
 
 export function TransactionForm({
@@ -57,24 +54,17 @@ export function TransactionForm({
   const [paidBy, setPaidBy] = useState<"a" | "b">(
     defaultValues?.paid_by ?? "a",
   );
-  const [isShared, setIsShared] = useState<boolean>(
-    defaultValues?.is_shared ?? false,
-  );
 
   const filtered = categories.filter((c) => c.type === type);
   const today = new Date().toISOString().slice(0, 10);
-
-  // 수입은 폼에서 공동 지원 안 함 (개인 처리). 지출/저금은 둘 다 가능.
-  const supportsShared = type === "expense" || type === "savings";
-  const isSharedValue = supportsShared && isShared ? "true" : "false";
 
   return (
     <form action={action} className="space-y-5">
       {idField ? <input type="hidden" name="id" value={idField} /> : null}
 
-      {/* 수입/지출/저금 토글 */}
+      {/* 수입/지출 토글 */}
       <div className="flex rounded-xl border border-neutral-200 bg-white p-1">
-        {(["expense", "income", "savings"] as const).map((t) => (
+        {(["expense", "income"] as const).map((t) => (
           <button
             key={t}
             type="button"
@@ -122,38 +112,7 @@ export function TransactionForm({
         </div>
       </div>
       <input type="hidden" name="paid_by" value={paidBy} />
-
-      {/* 공동/개인 (지출/저금) */}
-      {supportsShared ? (
-        <div className="space-y-1.5">
-          <label className="block text-sm font-medium">공동/개인</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setIsShared(true)}
-              className={`flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-sm font-semibold transition ${
-                isShared
-                  ? "border-rose-400 bg-rose-50 text-rose-600"
-                  : "border-neutral-200 bg-white text-neutral-500"
-              }`}
-            >
-              <Users size={14} /> 공동
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsShared(false)}
-              className={`flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-sm font-semibold transition ${
-                !isShared
-                  ? "border-neutral-400 bg-neutral-100 text-neutral-700"
-                  : "border-neutral-200 bg-white text-neutral-500"
-              }`}
-            >
-              <User size={14} /> 개인
-            </button>
-          </div>
-        </div>
-      ) : null}
-      <input type="hidden" name="is_shared" value={isSharedValue} />
+      <input type="hidden" name="is_shared" value="false" />
 
       {/* 날짜 */}
       <div className="space-y-1.5">
