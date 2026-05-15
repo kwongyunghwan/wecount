@@ -4,7 +4,7 @@ import { getAccount } from "@/lib/db/accounts";
 import { AppLayout } from "@/components/AppLayout";
 import { AccountForm } from "@/components/AccountForm";
 import { updateAccount, deleteAccount } from "@/app/actions/account";
-
+//ㅇㅇ
 export default async function EditAccountPage({
   params,
 }: {
